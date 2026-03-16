@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # ---- PostgreSQL Database ----
+  postgres:
+    image: postgres:15
+    container_name: fintech_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: fintech_user
+      POSTGRES_PASSWORD: fintech_pass
+      POSTGRES_DB: fintech_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ---- Redis Cache ----
+  redis:
+    image: redis:7-alpine
+    container_name: fintech_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # ---- Python AI Agents (FastAPI) ----
+  ai-agents:
+    build:
+      context: ./ai-agents
+      dockerfile: Dockerfile
+    container_name: fintech_ai_agents
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai-agents/.env
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./ai-agents:/app
+
+  # ---- Node.js Backend ----
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: fintech_server
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+    depends_on:
+      - postgres
+      - redis
+      - ai-agents
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+  # ---- React Frontend ----
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: fintech_client
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./client/.env
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
